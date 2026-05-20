@@ -1,0 +1,10 @@
+# System Configuration
+app_dir: "/opt/suivi-depenses"
+
+# Docker Container Application Ports
+mysql_port: "3306"
+api_port: "8080"
+interface_port: "80"
+
+# Secret Credentials (override in production using ansible-vault or env vars)
+mysql_root_password: "finances_secret_production"

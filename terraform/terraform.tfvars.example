@@ -1,0 +1,14 @@
+# AWS region to provision resources
+aws_region = "us-east-1"
+
+# Environment identifier (dev, staging, production)
+environment = "production"
+
+# Application base name
+app_name = "suivi-depenses"
+
+# EC2 Instance profile (minimum recommended is t3.small due to Maven builds)
+instance_type = "t3.small"
+
+# The name of the AWS EC2 Key Pair already created in your AWS Account console
+ssh_key_name = "suivi-depenses-key"

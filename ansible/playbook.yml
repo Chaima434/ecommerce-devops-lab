@@ -1,0 +1,24 @@
+---
+- name: Provision and Deploy Personal Finance Tracking Application
+  hosts: app_servers
+  become: yes
+  vars_files:
+    - vars/main.yml
+
+  pre_tasks:
+    - name: Verify connection and host compatibility
+      setup:
+        filter: ansible_distribution
+
+    - name: Ensure target OS is supported
+      assert:
+        that:
+          - ansible_distribution == 'Ubuntu'
+        fail_msg: "This playbook only supports Ubuntu deployment targets."
+
+  roles:
+    - role: docker
+      tags: [docker-install]
+
+    - role: deploy
+      tags: [app-deploy]

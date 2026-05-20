@@ -1,0 +1,74 @@
+---
+- name: Ensure target application directory exists
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Copy docker-compose.yml to remote host
+  copy:
+    src: ../docker-compose.yml
+    dest: "{{ app_dir }}/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Copy backend source code to remote host
+  copy:
+    src: ../backend/
+    dest: "{{ app_dir }}/backend/"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+    # Exclude massive local build files
+    local_follow_links: no
+  tags: [code-sync]
+
+- name: Remove any copied target folder or IDE folders in backend to keep clean
+  file:
+    path: "{{ app_dir }}/backend/target"
+    state: absent
+
+- name: Copy frontend source code to remote host
+  copy:
+    src: ../frontend/
+    dest: "{{ app_dir }}/frontend/"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+    # Exclude massive local build files
+    local_follow_links: no
+  tags: [code-sync]
+
+- name: Remove any copied node_modules or dist folders in frontend to keep clean
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ app_dir }}/frontend/node_modules"
+    - "{{ app_dir }}/frontend/.angular"
+    - "{{ app_dir }}/frontend/dist"
+
+- name: Generate production environment configuration (.env)
+  copy:
+    dest: "{{ app_dir }}/.env"
+    content: |
+      MYSQL_MOT_DE_PASSE={{ mysql_root_password }}
+      MYSQL_PORT={{ mysql_port }}
+      API_PORT={{ api_port }}
+      INTERFACE_PORT={{ interface_port }}
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+
+- name: Build and deploy the Docker Compose multi-container stack
+  command: docker compose up -d --build
+  args:
+    chdir: "{{ app_dir }}"
+  register: compose_output
+
+- name: Print Docker Compose startup log
+  debug:
+    var: compose_output.stdout_lines
