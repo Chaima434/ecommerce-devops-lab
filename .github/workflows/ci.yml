@@ -120,3 +120,36 @@ jobs:
           file: ./frontend/Dockerfile
           push: false
           tags: suivi-depenses-interface:latest
+
+  # 5. Output Deployment Details & URLs
+  deployment-summary:
+    name: 🚀 Deployment Summary & Links
+    runs-on: ubuntu-latest
+    needs: [backend-ci, frontend-ci, iac-validation, docker-validation]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract IP and Generate Summary
+        run: |
+          # Extract the IP address from inventory.ini
+          IP=$(grep -E '^[0-9]' ansible/inventory.ini | awk '{print $1}')
+          
+          if [ -z "$IP" ]; then
+            echo "Error: Could not extract IP address from inventory.ini"
+            exit 1
+          fi
+          
+          echo "### 🚀 Personal Finance Tracker Deployment Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The infrastructure has been successfully provisioned. Here are the access details for your environment:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | URL / Access Command |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **🖥️ Frontend UI** | [http://$IP](http://$IP) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **⚙️ Backend API** | [http://$IP:8080/api/](http://$IP:8080/api/) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **🔑 SSH Server Access** | \`ssh -i ~/Downloads/chaima.pem ubuntu@$IP\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> [!TIP]" >> $GITHUB_STEP_SUMMARY
+          echo "> To configure the server and deploy the code, execute your Ansible playbook: \`ansible-playbook -i inventory.ini playbook.yml\` inside the \`ansible\` directory!" >> $GITHUB_STEP_SUMMARY
+
