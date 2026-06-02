@@ -5,15 +5,21 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.finance</groupId>
-        <artifactId>finmanage-parent</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.4</version>
+        <relativePath/>
     </parent>
 
+    <groupId>com.finance</groupId>
     <artifactId>auth-service</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
     <name>auth-service</name>
     <description>Authentication Microservice</description>
+
+    <properties>
+        <java.version>17</java.version>
+    </properties>
 
     <dependencies>
         <dependency>
