@@ -6,7 +6,6 @@ import com.finance.exception.ResourceNotFoundException;
 import com.finance.model.Pret;
 import com.finance.model.Utilisateur;
 import com.finance.repository.PretRepository;
-import com.finance.repository.UtilisateurRepository;
 import com.finance.service.IPretService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,7 +16,6 @@ import java.util.stream.Collectors;
 public class PretServiceImpl implements IPretService {
 
     @Autowired private PretRepository pretRepository;
-    @Autowired private UtilisateurRepository utilisateurRepository;
 
     @Override
     public List<PretResponseDTO> findByUtilisateur(Long utilisateurId) {
@@ -29,8 +27,8 @@ public class PretServiceImpl implements IPretService {
 
     @Override
     public PretResponseDTO create(PretRequestDTO dto) {
-        Utilisateur u = utilisateurRepository.findById(dto.getUtilisateurId())
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        Utilisateur u = new Utilisateur();
+        u.setId(dto.getUtilisateurId());
         Pret entity = new Pret();
         entity.setTypePret(dto.getTypePret());
         entity.setMontantTotal(dto.getMontantTotal());

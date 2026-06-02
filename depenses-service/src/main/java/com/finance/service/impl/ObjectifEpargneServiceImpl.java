@@ -6,7 +6,6 @@ import com.finance.exception.ResourceNotFoundException;
 import com.finance.model.ObjectifEpargne;
 import com.finance.model.Utilisateur;
 import com.finance.repository.ObjectifEpargneRepository;
-import com.finance.repository.UtilisateurRepository;
 import com.finance.service.IObjectifEpargneService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,6 @@ import java.util.stream.Collectors;
 public class ObjectifEpargneServiceImpl implements IObjectifEpargneService {
 
     @Autowired private ObjectifEpargneRepository objectifRepository;
-    @Autowired private UtilisateurRepository utilisateurRepository;
 
     @Override
     public List<ObjectifEpargneResponseDTO> findByUtilisateur(Long utilisateurId) {
@@ -33,8 +31,8 @@ public class ObjectifEpargneServiceImpl implements IObjectifEpargneService {
 
     @Override
     public ObjectifEpargneResponseDTO create(ObjectifEpargneRequestDTO dto) {
-        Utilisateur utilisateur = utilisateurRepository.findById(dto.getUtilisateurId())
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        Utilisateur utilisateur = new Utilisateur();
+        utilisateur.setId(dto.getUtilisateurId());
         ObjectifEpargne entity = new ObjectifEpargne();
         entity.setIntitule(dto.getIntitule());
         entity.setMontantCible(dto.getMontantCible());

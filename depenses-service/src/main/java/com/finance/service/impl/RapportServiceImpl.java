@@ -6,7 +6,6 @@ import com.finance.exception.ResourceNotFoundException;
 import com.finance.model.Rapport;
 import com.finance.model.Utilisateur;
 import com.finance.repository.RapportRepository;
-import com.finance.repository.UtilisateurRepository;
 import com.finance.service.IRapportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,6 @@ import java.util.stream.Collectors;
 public class RapportServiceImpl implements IRapportService {
 
     @Autowired private RapportRepository rapportRepository;
-    @Autowired private UtilisateurRepository utilisateurRepository;
 
     @Override
     public List<RapportResponseDTO> findByUtilisateur(Long utilisateurId) {
@@ -30,8 +28,8 @@ public class RapportServiceImpl implements IRapportService {
 
     @Override
     public RapportResponseDTO create(RapportRequestDTO dto) {
-        Utilisateur u = utilisateurRepository.findById(dto.getUtilisateurId())
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        Utilisateur u = new Utilisateur();
+        u.setId(dto.getUtilisateurId());
         Rapport entity = new Rapport();
         entity.setType(dto.getType());
         entity.setPeriode(dto.getPeriode());

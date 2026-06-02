@@ -8,7 +8,6 @@ import com.finance.model.Categorie;
 import com.finance.model.Utilisateur;
 import com.finance.repository.BudgetRepository;
 import com.finance.repository.CategorieRepository;
-import com.finance.repository.UtilisateurRepository;
 import com.finance.service.IBudgetService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,7 +19,6 @@ import java.util.stream.Collectors;
 public class BudgetServiceImpl implements IBudgetService {
 
     @Autowired private BudgetRepository budgetRepository;
-    @Autowired private UtilisateurRepository utilisateurRepository;
     @Autowired private CategorieRepository categorieRepository;
 
     @Override
@@ -41,8 +39,8 @@ public class BudgetServiceImpl implements IBudgetService {
 
     @Override
     public BudgetResponseDTO create(BudgetRequestDTO dto) {
-        Utilisateur utilisateur = utilisateurRepository.findById(dto.getUtilisateurId())
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        Utilisateur utilisateur = new Utilisateur();
+        utilisateur.setId(dto.getUtilisateurId());
         Categorie categorie = categorieRepository.findById(dto.getCategorieId())
                 .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
 

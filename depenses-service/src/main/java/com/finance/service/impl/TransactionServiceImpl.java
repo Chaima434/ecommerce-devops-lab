@@ -9,7 +9,6 @@ import com.finance.model.TypeTransaction;
 import com.finance.model.Utilisateur;
 import com.finance.repository.CategorieRepository;
 import com.finance.repository.TransactionRepository;
-import com.finance.repository.UtilisateurRepository;
 import com.finance.service.ITransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,8 +22,6 @@ public class TransactionServiceImpl implements ITransactionService {
 
     @Autowired
     private TransactionRepository transactionRepository;
-    @Autowired
-    private UtilisateurRepository utilisateurRepository;
     @Autowired
     private CategorieRepository categorieRepository;
 
@@ -53,8 +50,8 @@ public class TransactionServiceImpl implements ITransactionService {
 
     @Override
     public TransactionResponseDTO create(TransactionRequestDTO dto) {
-        Utilisateur utilisateur = utilisateurRepository.findById(dto.getUtilisateurId())
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        Utilisateur utilisateur = new Utilisateur();
+        utilisateur.setId(dto.getUtilisateurId());
         Categorie categorie = null;
         if (dto.getCategorieId() != null) {
             categorie = categorieRepository.findById(dto.getCategorieId())

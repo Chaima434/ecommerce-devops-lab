@@ -17,6 +17,7 @@
 *.sw?
 
 # Build outputs
-backend/target/
+target/
+**/target/
 frontend/dist/
 node_modules/

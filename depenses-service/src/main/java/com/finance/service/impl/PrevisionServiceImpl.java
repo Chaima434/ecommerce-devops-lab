@@ -6,7 +6,6 @@ import com.finance.exception.ResourceNotFoundException;
 import com.finance.model.Prevision;
 import com.finance.model.Utilisateur;
 import com.finance.repository.PrevisionRepository;
-import com.finance.repository.UtilisateurRepository;
 import com.finance.service.IPrevisionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,7 +16,6 @@ import java.util.stream.Collectors;
 public class PrevisionServiceImpl implements IPrevisionService {
 
     @Autowired private PrevisionRepository previsionRepository;
-    @Autowired private UtilisateurRepository utilisateurRepository;
 
     @Override
     public List<PrevisionResponseDTO> findByUtilisateur(Long utilisateurId) {
@@ -29,8 +27,8 @@ public class PrevisionServiceImpl implements IPrevisionService {
 
     @Override
     public PrevisionResponseDTO create(PrevisionRequestDTO dto) {
-        Utilisateur u = utilisateurRepository.findById(dto.getUtilisateurId())
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        Utilisateur u = new Utilisateur();
+        u.setId(dto.getUtilisateurId());
         Prevision entity = new Prevision();
         entity.setMois(dto.getMois());
         entity.setAnnee(dto.getAnnee());
