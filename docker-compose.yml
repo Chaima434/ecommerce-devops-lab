@@ -17,23 +17,51 @@ services:
       retries: 10
       start_period: 30s
 
-  api:
+  auth-service:
     build:
-      context: ./backend
+      context: ./auth-service
       dockerfile: Dockerfile
-    container_name: suivi-depenses-api
+    container_name: suivi-depenses-auth
     restart: unless-stopped
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://base-donnees:3306/gestion_finances?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_MOT_DE_PASSE}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_SHOW_SQL: "false"
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "8081:8081"
     depends_on:
       base-donnees:
         condition: service_healthy
+
+  depenses-service:
+    build:
+      context: ./depenses-service
+      dockerfile: Dockerfile
+    container_name: suivi-depenses-depenses
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://base-donnees:3306/gestion_finances?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_MOT_DE_PASSE}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8082:8082"
+    depends_on:
+      base-donnees:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: suivi-depenses-gateway
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      - auth-service
+      - depenses-service
 
   interface:
     build:
@@ -44,7 +72,7 @@ services:
     ports:
       - "${INTERFACE_PORT:-80}:80"
     depends_on:
-      api:
+      api-gateway:
         condition: service_started
 
   prometheus:
@@ -56,7 +84,7 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      - api
+      - api-gateway
 
   grafana:
     image: grafana/grafana:latest
