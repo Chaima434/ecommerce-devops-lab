@@ -179,8 +179,10 @@ jobs:
           sudo apt-get install -y ansible
 
       - name: Setup SSH Private Key
+        env:
+          ANSIBLE_SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
         run: |
-          echo "${{ secrets.ANSIBLE_SSH_KEY }}" > ansible/private_key.pem
+          printf '%s\n' "$ANSIBLE_SSH_KEY" > ansible/private_key.pem
           chmod 600 ansible/private_key.pem
 
       - name: Run Ansible Playbook (Install Minikube & Kubectl)
