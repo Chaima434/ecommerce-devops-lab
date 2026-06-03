@@ -139,9 +139,38 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend-ci, frontend-ci, iac-validation, docker-validation]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    outputs:
+      instance_ip: ${{ steps.get-ip.outputs.ip }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: |
+          terraform init
+          terraform apply -auto-approve
+
+      - name: Generate Dynamic Inventory
+        id: get-ip
+        run: |
+          IP=$(terraform -chdir=terraform output -raw instance_public_ip)
+          echo "Dynamically fetched IP: $IP"
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+          echo "[web]" > ansible/inventory.ini
+          echo "$IP ansible_user=ubuntu ansible_ssh_private_key_file=private_key.pem" >> ansible/inventory.ini
 
       - name: Install Ansible
         run: |
@@ -173,15 +202,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy-to-minikube]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Extract IP and Generate Summary
+      - name: Generate Summary
         run: |
-          IP=$(grep -E '^[0-9]' ansible/inventory.ini | awk '{print $1}')
+          IP=${{ needs.deploy-to-minikube.outputs.instance_ip }}
           
           if [ -z "$IP" ]; then
-            echo "Error: Could not extract IP address from inventory.ini"
+            echo "Error: IP address output from deploy-to-minikube was empty"
             exit 1
           fi
           

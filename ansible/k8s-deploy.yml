@@ -1,6 +1,6 @@
 ---
 - name: Deploy FinManage Microservices to Minikube on EC2
-  hosts: app_servers
+  hosts: web
   become: yes
   vars:
     app_dir: /opt/suivi-depenses

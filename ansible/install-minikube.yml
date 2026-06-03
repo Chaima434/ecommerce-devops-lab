@@ -1,6 +1,6 @@
 ---
 - name: Install Minikube and Kubectl on EC2
-  hosts: app_servers
+  hosts: web
   become: yes
   tasks:
     - name: Update apt cache
