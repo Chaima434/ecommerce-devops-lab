@@ -25,5 +25,5 @@ variable "instance_type" {
 variable "ssh_key_name" {
   description = "The name of the pre-configured AWS EC2 Key Pair used for SSH authentication"
   type        = string
-  default     = "suivi-depenses-key"
+  default     = "chaima"
 }

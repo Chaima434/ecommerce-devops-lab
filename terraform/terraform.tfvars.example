@@ -11,4 +11,4 @@ app_name = "suivi-depenses"
 instance_type = "t3.small"
 
 # The name of the AWS EC2 Key Pair already created in your AWS Account console
-ssh_key_name = "suivi-depenses-key"
+ssh_key_name = "chaima"
