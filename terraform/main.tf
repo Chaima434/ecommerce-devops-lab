@@ -4,77 +4,34 @@ data "aws_ami" "ubuntu" {
   owners      = ["099720109477"] # Canonical
 
   filter {
-    name     = "name"
-    values   = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
 
   filter {
-    name     = "virtualization-type"
-    values   = ["hvm"]
+    name   = "virtualization-type"
+    values = ["hvm"]
   }
 }
 
-# 1. Custom Virtual Private Cloud (VPC)
-resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
-  enable_dns_support   = true
+# 1. Use the existing Default VPC (avoids VpcLimitExceeded on AWS Academy accounts)
+data "aws_vpc" "default" {
+  default = true
+}
 
-  tags = {
-    Name        = "${var.app_name}-${var.environment}-vpc"
-    Environment = var.environment
+# 2. Use the first available default subnet in the default VPC
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
   }
 }
 
-# 2. Internet Gateway for External Access
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.main.id
-
-  tags = {
-    Name        = "${var.app_name}-${var.environment}-igw"
-    Environment = var.environment
-  }
-}
-
-# 3. Public Subnet for the EC2 Application Instance
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "${var.aws_region}a"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name        = "${var.app_name}-${var.environment}-public-subnet"
-    Environment = var.environment
-  }
-}
-
-# 4. Route Table for Routing Internet Traffic to IGW
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-
-  tags = {
-    Name        = "${var.app_name}-${var.environment}-public-rt"
-    Environment = var.environment
-  }
-}
-
-# 5. Route Table Association
-resource "aws_route_table_association" "public_association" {
-  subnet_id      = aws_subnet.public.id
-  route_table_id = aws_route_table.public.id
-}
-
-# 6. Security Group for Access Control
+# 3. Security Group for Access Control (attached to the default VPC)
 resource "aws_security_group" "app_sg" {
   name        = "${var.app_name}-${var.environment}-sg"
-  description = "Allow inbound traffic for SSH, HTTP Frontend, Backend API, and Database"
-  vpc_id      = aws_vpc.main.id
+  description = "Allow inbound traffic for SSH, HTTP Frontend, Backend API, NodePorts and Database"
+  vpc_id      = data.aws_vpc.default.id
 
   # SSH Access (used by administrators & Ansible)
   ingress {
@@ -82,10 +39,10 @@ resource "aws_security_group" "app_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # In production, restrict this to your specific public IP for security
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # HTTP Web Interface Access
+  # HTTP Web Interface (Docker Compose / direct)
   ingress {
     description = "Frontend Web Application"
     from_port   = 80
@@ -94,7 +51,7 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Spring Boot Backend REST API Access
+  # API Gateway
   ingress {
     description = "Backend REST API"
     from_port   = 8080
@@ -103,13 +60,31 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # MySQL Database Access (Optional / for direct debug access if needed)
+  # Kubernetes NodePort — Frontend
   ingress {
-    description = "MySQL database server"
-    from_port   = 3306
-    to_port     = 3306
+    description = "K8s NodePort Frontend"
+    from_port   = 30080
+    to_port     = 30080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Recommended to close or restrict to app VPC in strict prod environments
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Kubernetes NodePort — Prometheus
+  ingress {
+    description = "K8s NodePort Prometheus"
+    from_port   = 30090
+    to_port     = 30090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Kubernetes NodePort — Grafana
+  ingress {
+    description = "K8s NodePort Grafana"
+    from_port   = 30300
+    to_port     = 30300
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # Full outbound connection (required for system updates & pulling Docker images)
@@ -127,11 +102,11 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
-# 7. Provision the EC2 Instance
+# 4. Provision the EC2 Instance using the default VPC subnet
 resource "aws_instance" "app_server" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
-  subnet_id              = aws_subnet.public.id
+  subnet_id              = tolist(data.aws_subnets.default.ids)[0]
   vpc_security_group_ids = [aws_security_group.app_sg.id]
   key_name               = var.ssh_key_name
 
