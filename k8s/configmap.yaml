@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finmanage-config
+  namespace: finmanage
+data:
+  MYSQL_DATABASE: "gestion_finances"
+  SPRING_DATASOURCE_URL: "jdbc:mysql://base-donnees:3306/gestion_finances?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+  SPRING_DATASOURCE_USERNAME: "root"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+  GF_SECURITY_ADMIN_PASSWORD: "admin"
+  GF_USERS_ALLOW_SIGN_UP: "false"

@@ -1,4 +1,4 @@
-name: Continuous Integration (CI)
+name: Continuous Integration & Deployment (CI/CD)
 
 on:
   push:
@@ -14,13 +14,10 @@ permissions:
   contents: read
 
 jobs:
-  # 1. Backend CI: Spring Boot Verification
+  # 1. Backend CI: Spring Boot Verification (All microservices via parent POM)
   backend-ci:
     name: Backend CI (Spring Boot)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,11 +29,8 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Make Maven wrapper executable
-        run: chmod +x mvnw
-
       - name: Build with Maven
-        run: ./mvnw clean package -DskipTests
+        run: mvn clean package -DskipTests
 
   # 2. Frontend CI: Angular Verification
   frontend-ci:
@@ -92,10 +86,12 @@ jobs:
         working-directory: ansible
         run: |
           ansible-playbook --syntax-check -i inventory.ini playbook.yml
+          ansible-playbook --syntax-check -i inventory.ini install-minikube.yml
+          ansible-playbook --syntax-check -i inventory.ini k8s-deploy.yml
 
   # 4. Docker Build Verification
   docker-validation:
-    name: Docker Build Validation
+    name: Docker Build Verification
     runs-on: ubuntu-latest
     needs: [backend-ci, frontend-ci]
     steps:
@@ -105,13 +101,29 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Verify Backend Docker Build
+      - name: Verify Auth Service Docker Build
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          context: ./auth-service
+          file: ./auth-service/Dockerfile
           push: false
-          tags: suivi-depenses-api:latest
+          tags: suivi-depenses-auth:latest
+
+      - name: Verify Expenses Service Docker Build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./depenses-service
+          file: ./depenses-service/Dockerfile
+          push: false
+          tags: suivi-depenses-depenses:latest
+
+      - name: Verify API Gateway Docker Build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api-gateway
+          file: ./api-gateway/Dockerfile
+          push: false
+          tags: suivi-depenses-gateway:latest
 
       - name: Verify Frontend Docker Build
         uses: docker/build-push-action@v5
@@ -121,18 +133,51 @@ jobs:
           push: false
           tags: suivi-depenses-interface:latest
 
-  # 5. Output Deployment Details & URLs
-  deployment-summary:
-    name: 🚀 Deployment Summary & Links
+  # 5. Deploy to EC2 & Minikube (Runs after validations pass)
+  deploy-to-minikube:
+    name: 🚀 Deploy to EC2 & Minikube
     runs-on: ubuntu-latest
     needs: [backend-ci, frontend-ci, iac-validation, docker-validation]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Setup SSH Private Key
+        run: |
+          echo "${{ secrets.ANSIBLE_SSH_KEY }}" > ansible/private_key.pem
+          chmod 600 ansible/private_key.pem
+
+      - name: Run Ansible Playbook (Install Minikube & Kubectl)
+        working-directory: ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+        run: |
+          ansible-playbook -i inventory.ini install-minikube.yml --private-key=private_key.pem
+
+      - name: Run Ansible Playbook (Deploy to Kubernetes on Minikube)
+        working-directory: ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+        run: |
+          ansible-playbook -i inventory.ini k8s-deploy.yml --private-key=private_key.pem
+
+  # 6. Output Deployment Details & URLs
+  deployment-summary:
+    name: 📊 Deployment Summary & Links
+    runs-on: ubuntu-latest
+    needs: [deploy-to-minikube]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Extract IP and Generate Summary
         run: |
-          # Extract the IP address from inventory.ini
           IP=$(grep -E '^[0-9]' ansible/inventory.ini | awk '{print $1}')
           
           if [ -z "$IP" ]; then
@@ -142,14 +187,13 @@ jobs:
           
           echo "### 🚀 Personal Finance Tracker Deployment Information" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The infrastructure has been successfully provisioned. Here are the access details for your environment:" >> $GITHUB_STEP_SUMMARY
+          echo "The application has been successfully deployed to Kubernetes on Minikube running on your EC2 instance." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Service | URL / Access Command |" >> $GITHUB_STEP_SUMMARY
-          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| **🖥️ Frontend UI** | [http://$IP](http://$IP) |" >> $GITHUB_STEP_SUMMARY
-          echo "| **⚙️ Backend API** | [http://$IP:8080/api/](http://$IP:8080/api/) |" >> $GITHUB_STEP_SUMMARY
-          echo "| **🔑 SSH Server Access** | \`ssh -i ~/Downloads/chaima.pem ubuntu@$IP\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | URL / Port | Mode |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **🖥️ Frontend UI** | [http://$IP:30080](http://$IP:30080) | NodePort 30080 |" >> $GITHUB_STEP_SUMMARY
+          echo "| **📈 Prometheus** | [http://$IP:30090](http://$IP:30090) | NodePort 30090 |" >> $GITHUB_STEP_SUMMARY
+          echo "| **📊 Grafana** | [http://$IP:30300](http://$IP:30300) | NodePort 30300 |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> [!TIP]" >> $GITHUB_STEP_SUMMARY
-          echo "> To configure the server and deploy the code, execute your Ansible playbook: \`ansible-playbook -i inventory.ini playbook.yml\` inside the \`ansible\` directory!" >> $GITHUB_STEP_SUMMARY
-
+          echo "> [!NOTE]" >> $GITHUB_STEP_SUMMARY
+          echo "> To manage the cluster manually, SSH into the EC2 instance (\`ssh -i ~/Downloads/chaima.pem ubuntu@$IP\`) and run \`kubectl get pods -n finmanage\`." >> $GITHUB_STEP_SUMMARY

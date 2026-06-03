@@ -1,0 +1,127 @@
+---
+- name: Deploy FinManage Microservices to Minikube on EC2
+  hosts: app_servers
+  become: yes
+  vars:
+    app_dir: /opt/suivi-depenses
+  tasks:
+    - name: Ensure target application directory exists
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0777'
+
+    - name: Copy auth-service source code to remote host
+      copy:
+        src: ../auth-service/
+        dest: "{{ app_dir }}/auth-service/"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy depenses-service source code to remote host
+      copy:
+        src: ../depenses-service/
+        dest: "{{ app_dir }}/depenses-service/"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy api-gateway source code to remote host
+      copy:
+        src: ../api-gateway/
+        dest: "{{ app_dir }}/api-gateway/"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy frontend source code to remote host
+      copy:
+        src: ../frontend/
+        dest: "{{ app_dir }}/frontend/"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy k8s manifests to remote host
+      copy:
+        src: ../k8s/
+        dest: "{{ app_dir }}/k8s/"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy prometheus configuration to remote host
+      copy:
+        src: ../prometheus/
+        dest: "{{ app_dir }}/prometheus/"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy grafana provisioning and dashboards to remote host
+      copy:
+        src: ../grafana/
+        dest: "{{ app_dir }}/grafana/"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0777'
+
+    - name: Ensure Grafana dashboard files are fully accessible by any user (for container)
+      file:
+        path: "{{ app_dir }}/grafana"
+        state: directory
+        recurse: yes
+        mode: '0777'
+
+    - name: Start Minikube
+      become: yes
+      become_user: ubuntu
+      command: minikube start --driver=docker
+      register: minikube_start
+      changed_when: "'Running' not in minikube_start.stdout"
+
+    - name: Build auth-service Docker image directly on EC2
+      become: yes
+      become_user: ubuntu
+      command: docker build -t suivi-depenses-auth:latest .
+      args:
+        chdir: "{{ app_dir }}/auth-service"
+
+    - name: Build depenses-service Docker image directly on EC2
+      become: yes
+      become_user: ubuntu
+      command: docker build -t suivi-depenses-depenses:latest .
+      args:
+        chdir: "{{ app_dir }}/depenses-service"
+
+    - name: Build api-gateway Docker image directly on EC2
+      become: yes
+      become_user: ubuntu
+      command: docker build -t suivi-depenses-gateway:latest .
+      args:
+        chdir: "{{ app_dir }}/api-gateway"
+
+    - name: Build frontend Docker image directly on EC2
+      become: yes
+      become_user: ubuntu
+      command: docker build -t suivi-depenses-interface:latest .
+      args:
+        chdir: "{{ app_dir }}/frontend"
+
+    - name: Load images into Minikube
+      become: yes
+      become_user: ubuntu
+      command: "minikube image load {{ item }}"
+      loop:
+        - "suivi-depenses-auth:latest"
+        - "suivi-depenses-depenses:latest"
+        - "suivi-depenses-gateway:latest"
+        - "suivi-depenses-interface:latest"
+
+    - name: Apply Kubernetes manifests
+      become: yes
+      become_user: ubuntu
+      command: kubectl apply -f "{{ app_dir }}/k8s/"

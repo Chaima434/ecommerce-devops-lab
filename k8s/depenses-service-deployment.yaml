@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: depenses-service
+  namespace: finmanage
+  labels:
+    app: depenses-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: depenses-service
+  template:
+    metadata:
+      labels:
+        app: depenses-service
+    spec:
+      containers:
+        - name: depenses-service
+          image: suivi-depenses-depenses:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+              name: http
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: finmanage-config
+                  key: SPRING_DATASOURCE_URL
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: finmanage-config
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-root-password
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              valueFrom:
+                configMapKeyRef:
+                  name: finmanage-config
+                  key: SPRING_JPA_HIBERNATE_DDL_AUTO
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: depenses-service
+  namespace: finmanage
+spec:
+  ports:
+    - port: 8082
+      targetPort: 8082
+      protocol: TCP
+  selector:
+    app: depenses-service
+  type: ClusterIP
