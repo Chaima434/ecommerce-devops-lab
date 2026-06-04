@@ -58,3 +58,20 @@
         path: /tmp/kubectl
         state: absent
       when: kubectl_check.rc != 0
+
+    - name: Ensure docker group exists
+      group:
+        name: docker
+        state: present
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Ensure docker socket has correct permissions
+      file:
+        path: /var/run/docker.sock
+        mode: '0666'
+
