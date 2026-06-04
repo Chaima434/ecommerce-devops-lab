@@ -79,7 +79,7 @@
     - name: Start Minikube
       become: yes
       become_user: ubuntu
-      command: minikube start --driver=docker
+      command: minikube start --driver=docker --memory=2200mb --cpus=2
       register: minikube_start
       changed_when: "'Running' not in minikube_start.stdout"
 

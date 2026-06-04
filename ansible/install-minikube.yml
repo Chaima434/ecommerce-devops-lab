@@ -3,6 +3,37 @@
   hosts: web
   become: yes
   tasks:
+    - name: Check if swap is enabled
+      command: swapon --show
+      register: swap_check
+      changed_when: false
+
+    - name: Create swap file if not present
+      command: dd if=/dev/zero of=/swapfile bs=1M count=4096
+      when: swap_check.stdout == ""
+      register: swap_create
+
+    - name: Set swapfile permissions
+      file:
+        path: /swapfile
+        mode: '0600'
+      when: swap_check.stdout == ""
+
+    - name: Format swapfile
+      command: mkswap /swapfile
+      when: swap_check.stdout == ""
+
+    - name: Enable swapfile
+      command: swapon /swapfile
+      when: swap_check.stdout == ""
+
+    - name: Add swapfile to fstab for persistence
+      lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+        state: present
+      when: swap_check.stdout == ""
+
     - name: Update apt cache
       apt:
         update_cache: yes
