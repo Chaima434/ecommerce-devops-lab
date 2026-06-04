@@ -158,7 +158,21 @@ jobs:
         with:
           terraform_version: "1.5.7"
 
+      - name: Check for Existing EC2 Instance
+        id: check-instance
+        run: |
+          IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=suivi-depenses-production-server" "Name=instance-state-name,Values=running" --query "Reservations[*].Instances[*].PublicIpAddress" --output text | head -n1)
+          if [ -n "$IP" ]; then
+            echo "Instance already exists with IP: $IP"
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "ip=$IP" >> $GITHUB_OUTPUT
+          else
+            echo "No running instance found."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Terraform Apply
+        if: steps.check-instance.outputs.exists != 'true'
         working-directory: terraform
         run: |
           terraform init
@@ -167,7 +181,11 @@ jobs:
       - name: Generate Dynamic Inventory
         id: get-ip
         run: |
-          IP=$(terraform -chdir=terraform output -raw instance_public_ip)
+          if [ "${{ steps.check-instance.outputs.exists }}" = "true" ]; then
+            IP="${{ steps.check-instance.outputs.ip }}"
+          else
+            IP=$(terraform -chdir=terraform output -raw instance_public_ip)
+          fi
           echo "Dynamically fetched IP: $IP"
           echo "ip=$IP" >> $GITHUB_OUTPUT
           echo "[web]" > ansible/inventory.ini
@@ -180,9 +198,9 @@ jobs:
 
       - name: Setup SSH Private Key
         env:
-          ANSIBLE_SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
+          ANSIBLE_SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY || secrets.EC2_KEY }}
         run: |
-          printf '%s\n' "$ANSIBLE_SSH_KEY" > ansible/private_key.pem
+          printf '%s\n' "$ANSIBLE_SSH_KEY" | tr -d '\r' > ansible/private_key.pem
           chmod 600 ansible/private_key.pem
 
       - name: Run Ansible Playbook (Install Minikube & Kubectl)
