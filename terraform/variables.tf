@@ -19,7 +19,7 @@ variable "app_name" {
 variable "instance_type" {
   description = "EC2 instance size"
   type        = string
-  default     = "t3.medium" # t3.medium provides 2 vCPUs and 4GB RAM, which is more stable for running Kubernetes, microservices and monitoring.
+  default     = "t3.small" # 2 vCPUs, 2GB RAM is optimal for building and running Spring Boot + Angular + MySQL.
 }
 
 variable "ssh_key_name" {
