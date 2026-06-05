@@ -208,14 +208,26 @@ jobs:
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
         run: |
-          ansible-playbook -i inventory.ini install-minikube.yml --private-key=private_key.pem -e "mysql_password=${{ secrets.MYSQL_MOT_DE_PASSE }}"
+          ansible-playbook -i inventory.ini install-minikube.yml --private-key=private_key.pem
 
       - name: Run Ansible Playbook (Deploy to Kubernetes on Minikube)
         working-directory: ansible
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
         run: |
-          ansible-playbook -i inventory.ini k8s-deploy.yml --private-key=private_key.pem -e "mysql_password=${{ secrets.MYSQL_MOT_DE_PASSE }}"
+          ansible-playbook -i inventory.ini k8s-deploy.yml --private-key=private_key.pem
+
+      - name: Run Ansible Playbook (Deploy via Docker Compose & Create .env)
+        working-directory: ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+        run: |
+          ansible-playbook -i inventory.ini deploy.yml --private-key=private_key.pem \
+            -e "mysql_password=${{ secrets.MYSQL_MOT_DE_PASSE }}" \
+            -e "aws_region=${{ secrets.AWS_REGION }}" \
+            -e "aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            -e "aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            -e "aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}"
 
   # 6. Output Deployment Details & URLs
   deployment-summary:
