@@ -27,3 +27,9 @@ variable "ssh_key_name" {
   type        = string
   default     = "chaima"
 }
+
+variable "alert_email" {
+  description = "Email address to receive alerts"
+  type        = string
+  default     = "chaima@example.com"
+}

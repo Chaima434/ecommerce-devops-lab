@@ -123,3 +123,57 @@ resource "aws_instance" "app_server" {
     Service     = "finance-app"
   }
 }
+
+# 5. AWS EventBridge Integration
+resource "aws_cloudwatch_event_bus" "finmanage_bus" {
+  name = "finmanage-bus"
+}
+
+resource "aws_cloudwatch_event_rule" "amount_over_500" {
+  name           = "amount-over-500"
+  description    = "Alert when transaction amount is greater than 500"
+  event_bus_name = aws_cloudwatch_event_bus.finmanage_bus.name
+
+  event_pattern = jsonencode({
+    source      = ["com.finance.depenses"]
+    detail-type = ["TransactionCreated"]
+    detail = {
+      montant = [{ numeric = [">", 500] }]
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "sns_target" {
+  rule           = aws_cloudwatch_event_rule.amount_over_500.name
+  event_bus_name = aws_cloudwatch_event_bus.finmanage_bus.name
+  arn            = aws_sns_topic.finmanage_alerts.arn
+}
+
+resource "aws_sns_topic" "finmanage_alerts" {
+  name = "finmanage-alerts"
+}
+
+resource "aws_sns_topic_policy" "default" {
+  arn    = aws_sns_topic.finmanage_alerts.arn
+  policy = data.aws_iam_policy_document.sns_topic_policy.json
+}
+
+data "aws_iam_policy_document" "sns_topic_policy" {
+  statement {
+    effect  = "Allow"
+    actions = ["SNS:Publish"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com"]
+    }
+
+    resources = [aws_sns_topic.finmanage_alerts.arn]
+  }
+}
+
+resource "aws_sns_topic_subscription" "email_sub" {
+  topic_arn = aws_sns_topic.finmanage_alerts.arn
+  protocol  = "email"
+  endpoint  = var.alert_email
+}

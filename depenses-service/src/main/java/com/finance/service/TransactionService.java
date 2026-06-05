@@ -14,6 +14,9 @@ public class TransactionService {
     @Autowired
     private TransactionRepository transactionRepository;
 
+    @Autowired
+    private EventBridgeService eventBridgeService;
+
     public List<Transaction> getAllTransactions() {
         return transactionRepository.findAll();
     }
@@ -23,7 +26,11 @@ public class TransactionService {
     }
 
     public Transaction saveTransaction(Transaction transaction) {
-        return transactionRepository.save(transaction);
+        Transaction saved = transactionRepository.save(transaction);
+        if (saved.getMontant() != null && saved.getMontant() > 500) {
+            eventBridgeService.publishTransactionEvent(saved);
+        }
+        return saved;
     }
 
     public void deleteTransaction(Long id) {

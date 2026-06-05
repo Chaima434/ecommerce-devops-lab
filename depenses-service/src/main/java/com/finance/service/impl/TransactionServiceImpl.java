@@ -10,6 +10,7 @@ import com.finance.model.Utilisateur;
 import com.finance.repository.CategorieRepository;
 import com.finance.repository.TransactionRepository;
 import com.finance.service.ITransactionService;
+import com.finance.service.EventBridgeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,8 @@ public class TransactionServiceImpl implements ITransactionService {
     private TransactionRepository transactionRepository;
     @Autowired
     private CategorieRepository categorieRepository;
+    @Autowired
+    private EventBridgeService eventBridgeService;
 
     @Override
     public List<TransactionResponseDTO> findAll() {
@@ -65,7 +68,12 @@ public class TransactionServiceImpl implements ITransactionService {
         entity.setSource(dto.getSource());
         entity.setUtilisateur(utilisateur);
         entity.setCategorie(categorie);
-        return toDTO(transactionRepository.save(entity));
+        
+        Transaction saved = transactionRepository.save(entity);
+        if (saved.getMontant() != null && saved.getMontant() > 500) {
+            eventBridgeService.publishTransactionEvent(saved);
+        }
+        return toDTO(saved);
     }
 
     @Override
@@ -81,7 +89,12 @@ public class TransactionServiceImpl implements ITransactionService {
                     .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
             entity.setCategorie(categorie);
         }
-        return toDTO(transactionRepository.save(entity));
+        
+        Transaction saved = transactionRepository.save(entity);
+        if (saved.getMontant() != null && saved.getMontant() > 500) {
+            eventBridgeService.publishTransactionEvent(saved);
+        }
+        return toDTO(saved);
     }
 
     @Override
